@@ -1,0 +1,67 @@
+<html>
+	<head>
+		<title>tumblr2rss</title>
+		
+		<style type="text/css">
+			
+			body {
+				background-color: #65D97D;
+			}
+			
+			p, span, a, h1 , span{
+				font-family: Helvetica, Arial, sans-serif;
+			}
+			
+			p, h1 {
+				padding: 10px 10px 10px 10px;
+			}
+			
+			h1 {
+				padding-bottom: 0px;
+			}
+			
+			.box {
+				width: 600px;
+				margin: 15% auto auto auto;
+				background-color: #1F8784;
+				
+				color:white;
+			}
+			
+			.button, .display {
+				background-color: #00697D;
+				display: inline-block;
+				margin-left: 32%;
+				margin-right: 32%;
+				margin-bottom: 20px;
+			}
+			
+			.display {
+				margin-left: auto;
+				margin-right: auto;
+				text-align: center;
+				width: 600px;
+			}
+			
+			.button a, .display span {
+				padding: 20px 40px 20px 40px;
+				display: block;
+				color: white;
+			}
+			
+			.button a:visited {
+				color: white;
+			}
+		</style>
+		
+	</head>
+	
+	<body>
+		
+		<div class="content">
+			{% block body %}
+			{% endblock %}
+		</div>
+	</body>
+</html>
+		
