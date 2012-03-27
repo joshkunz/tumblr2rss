@@ -9,6 +9,17 @@ import PyRSS2Gen as rss
 import datetime
 import cStringIO
 from jinja2 import Template
+import sys
+
+##Production
+SERVER_NAME = "http://tumblr2rss.joshkunz.com"
+PATH = "/srv/tumblr2rss/"
+
+##Dev
+#SERVER_NAME = "http://localhost:5000"
+#PATH = ""
+
+sys.path.append(PATH)
 import config
 
 app = Flask(__name__)
@@ -18,13 +29,6 @@ app.secret_key = config.secret_key #Secret key for flask Sessions
 CONSUMER_KEY = config.CONSUMER_KEY #Tumblr API Consumer Key
 CONSUMER_SECRET = config.CONSUMER_SECRET #Tumblr API Consumer Secret
 
-##Production
-SERVER_NAME = "http://tumblr2rss.joshkunz.com"
-PATH = "/srv/tumblr2rss/"
-
-##Dev
-#SERVER_NAME = "http://localhost:5000"
-#PATH = ""
 
 post_templates = {
 	"text": """
