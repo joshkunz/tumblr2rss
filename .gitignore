@@ -1,2 +1,3 @@
 *.db
 config.py
+*.pyc

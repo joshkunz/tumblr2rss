@@ -9,15 +9,14 @@ import PyRSS2Gen as rss
 import datetime
 import cStringIO
 from jinja2 import Template
-import sys
+import sys, os
 
+PATH = os.getcwd()
 ##Production
 SERVER_NAME = "http://tumblr2rss.joshkunz.com"
-PATH = "/srv/tumblr2rss/"
 
 ##Dev
 #SERVER_NAME = "http://localhost:5000"
-#PATH = ""
 
 sys.path.append(PATH)
 import config
