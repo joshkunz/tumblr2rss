@@ -1,10 +1,14 @@
-tumblr2RSS
+RSS utils
 -----------
+A bunch of utilities for turning things into RSS feeds. All are hosted, feel free to use them.
+
+tumblr2RSS
+############
 
 Turn your tumblr dashboard into an RSS feed, because apparently the tumblr
 team decided this was a bad idea.
 
-A copy of this is running on my website at [tumblr2rss.joshkunz.com]("http://tumblr2rss.joshkunz.com")
+A copy of this is running on my website at [rss.joshkunz.com]("http://rss.joshkunz.com/tumblr/dashboard")
 
 *Note* This there is a security aspect to this script. If you make an rss feed
 of your dashboard *it will become visible to everyone* for most people this is not

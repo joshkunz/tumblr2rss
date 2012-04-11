@@ -1,3 +1,4 @@
 *.db
-config.py
+*config.py
 *.pyc
+*.swp
