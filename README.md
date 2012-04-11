@@ -1,4 +1,4 @@
-RSS utils
+RSS Utils
 ==========
 A bunch of utilities for turning things into RSS feeds. All are hosted, feel free to use them.
 
