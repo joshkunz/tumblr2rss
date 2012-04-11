@@ -1,9 +1,9 @@
 RSS utils
------------
+==========
 A bunch of utilities for turning things into RSS feeds. All are hosted, feel free to use them.
 
 tumblr2RSS
-############
+-----------
 
 Turn your tumblr dashboard into an RSS feed, because apparently the tumblr
 team decided this was a bad idea.
