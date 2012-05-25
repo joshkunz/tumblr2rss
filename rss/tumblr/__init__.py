@@ -65,7 +65,17 @@ post_templates = {
 	{% set largest_player = player|sort(reverse=True, attribute='width')|first %}
 	{{ largest_player.embed_code|safe }}
 	{{ caption|safe }}
+	""",
+
+	"answer": """
+	<p>Q: <a href="{{ asking_url }}">{{ asking_name }}</a></p>
+	<blockquote>
+		<p>{{ question }}</p>
+	</blockquote>
+	<p>A: <a href="{{ post_url }}">{{ blog_name }}</a></p>
+	{{ answer|safe }}
 	"""
+	
 }
 
 #Decorate the templates
