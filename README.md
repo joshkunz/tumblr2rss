@@ -19,7 +19,6 @@ Gawker filters
 ----------------
 
 In my personal opinion gawker blogs tend to clog up my rss feed so I don't really subscribe to them.
-However I do like to read some of their posts, thus gawker top3. just use the format:
-    rss.joshkunz.com/gawker/top3/<gawker-site>
-to get the top 3 posts for that site. so `/gawker/top3/gizmodo` will give you the top 3 most viewed recent posts
-from gizmodo.
+However I do like to read some of their posts, thus gawker top3. just use the format: 
+`rss.joshkunz.com/gawker/top3/<gawker-site>` to get the top 3 posts for that site. so `/gawker/top3/gizmodo` will 
+give you the top 3 most viewed recent posts from gizmodo.
