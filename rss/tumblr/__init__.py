@@ -156,7 +156,8 @@ def render_rss(response, username="Unknown"):
 	items = []
 	for item in response["posts"]:
 		items.append(rss.RSSItem(
-			title = item.get("title", "Tumblr: "+item["type"]),
+			title = " ".join(("[{0}]".format(item.get("blog_name", "unknown")),
+							  item.get("title", "Tumblr: "+item["type"]))),
 			link = item["post_url"],
 			description = post_templates[item["type"]].render(**item),
 			pubDate = datetime.datetime.strptime(item["date"], 
