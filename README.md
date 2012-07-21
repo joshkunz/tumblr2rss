@@ -8,7 +8,9 @@ tumblr2RSS
 Turn your tumblr dashboard into an RSS feed, because apparently the tumblr
 team decided this was a bad idea.
 
-A copy of this is running on my website at [rss.joshkunz.com]("http://rss.joshkunz.com/tumblr/dashboard")
+A copy of this is running on my website at [rss.joshkunz.com](http://rss.joshkunz.com/tumblr/dashboard)
+just follow the steps and you will get a link like `rss.joshkunz.com/tumblr/dashboard/<user-name>.rss`
+which can be used in your feed reader of choice.
 
 *Note* This there is a security aspect to this script. If you make an rss feed
 of your dashboard *it will become visible to everyone* for most people this is not
