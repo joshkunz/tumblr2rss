@@ -156,7 +156,7 @@ def render_rss(response, username="Unknown"):
     items = []
     for item in response["posts"]:
         items.append(rss.RSSItem(
-            title = u"[{0}] {1}".format(item.get("title", u"unknown"),
+            title = u"[{0}] {1}".format(item.get("blog_name", u"unknown"),
                                         item.get("title", u"Tumblr: {0}"\
                                                .format(item["type"]))),
             link = item["post_url"],
