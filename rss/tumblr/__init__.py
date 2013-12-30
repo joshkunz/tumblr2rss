@@ -14,6 +14,8 @@ import sys, os
 
 from rss.tumblr import config
 
+from pprint import pprint
+
 tumblr = Blueprint("tumblr", __name__, 
                    template_folder='templates')
 
@@ -157,8 +159,10 @@ def render_rss(response, username="Unknown"):
     for item in response["posts"]:
         items.append(rss.RSSItem(
             title = u"[{0}] {1}".format(item.get("blog_name", u"unknown"),
-                                        item.get("title", u"Tumblr: {0}"\
-                                               .format(item["type"]))),
+                                        item["title"] \
+                                            if "title" in item  \
+                                                and item["title"] else \
+                                        u"Tumblr: {0}".format(item["type"])),
             link = item["post_url"],
             description = post_templates[item["type"]].render(**item),
             pubDate = datetime.datetime.strptime(item["date"], 
@@ -217,7 +221,14 @@ def user_dash(username):
     resp, user_dash = client.request("http://api.tumblr.com/v2/user/dashboard", 
                                      "GET")
     
+    # Remove unauthorized user's info
+    if resp.status == 401:
+        g.c.execute("""
+        DELETE from user where username = ? AND oauth_key = ? AND oauth_secret = ?
+        """, (user[0], user[1], user[2]))
+        g.db.commit()
+        abort(404)
+
     user_dash = json.loads(user_dash)
-    
     return render_rss(user_dash["response"], username=user[0])
 
