@@ -8,7 +8,11 @@
 	get started. <em>Note: using this service will effectively
 	make your dashboard public, so use with caution.</em></p>
 	<div class="button">
-        <a href="{{ url_for("tumblr.register") }}">Login with tumblr</a>
+        <a class="login-ref" href="{{ url_for("tumblr.register") }}">Login with tumblr</a>
     </div>
+    <h2 id="unregister">How to Un-Register</h2>
+    <p>You can unregister from this service (removing your ".rss" url) by
+    going to <a href="https://www.tumblr.com/settings/apps">"Apps" in your settings</a>
+    and clicking the "x" next to the name <strong>RSS-Utils Tumblr Bot</strong></p>
 </div>
 {% endblock %}
