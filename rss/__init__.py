@@ -14,11 +14,9 @@ app.secret_key = config.secret
 
 # import plugins
 from rss.tumblr import tumblr
-from rss.gawker import gawker
 
 @app.route("/")
 def home_page():
 	return redirect("http://github.com/Joshkunz/rss-utils")
 
 app.register_blueprint(tumblr, url_prefix="/tumblr")
-app.register_blueprint(gawker, url_prefix="/gawker")
