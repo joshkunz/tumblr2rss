@@ -88,13 +88,11 @@ for name, values in post_templates.iteritems():
 def setup():
     g.db = sqlite3.connect(os.path.join(tumblr.root_path, "users.db"))
     g.c = g.db.cursor()
-    
-    def setupdb():
-        g.c.execute("""
-                 CREATE TABLE IF NOT EXISTS user
-                 (username text, oauth_key text, oauth_secret text)
-                 """)
-    setupdb()
+
+@tumblr.teardown_request
+def teardown():
+    g.c.close()
+    g.db.close()
     
 @tumblr.route("/dashboard")
 def index():
