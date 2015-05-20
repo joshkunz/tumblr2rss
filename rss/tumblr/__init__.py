@@ -90,9 +90,10 @@ def setup():
     g.c = g.db.cursor()
 
 @tumblr.teardown_request
-def teardown():
+def teardown(response):
     g.c.close()
     g.db.close()
+    return response
     
 @tumblr.route("/dashboard")
 def index():
