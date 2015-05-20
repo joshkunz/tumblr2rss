@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+cat user.schema | sqlite3 users.db
+
