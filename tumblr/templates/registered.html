@@ -4,7 +4,7 @@
 	<p>All done. See, that wasn't so bad. Just subscribe to the feed at the url 
     below in your rss reader of choice. Enjoy.</p>
 	<div class="display">
-        <span>{{ url_for("tumblr.user_dash", username=user, _external=True) }}</span>
+        <span>{{ url_for("user_dash", username=user, _external=True) }}</span>
 	</div>
 </div>
 {% endblock %}

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, g, session, abort, \
+from flask import Flask, request, g, session, abort, \
                   redirect, make_response, url_for
 from flask.templating import render_template
 import oauth2
@@ -12,16 +12,13 @@ import cStringIO
 from jinja2 import Template
 import sys, os
 
-from rss.tumblr import config
+import config
 
-from pprint import pprint
-
-tumblr = Blueprint("tumblr", __name__, 
-                   template_folder='templates')
+app = Flask(__name__, template_folder='templates')
+app.debug = True
 
 CONSUMER_KEY = config.CONSUMER_KEY #Tumblr API Consumer Key
 CONSUMER_SECRET = config.CONSUMER_SECRET #Tumblr API Consumer Secret
-
 
 post_templates = {
     "text": """
@@ -84,22 +81,24 @@ post_templates = {
 for name, values in post_templates.iteritems():
     post_templates[name] = Template(post_templates[name])
 
-@tumblr.before_request
+@app.before_request
 def setup():
-    g.db = sqlite3.connect(os.path.join(tumblr.root_path, "users.db"))
+    g.db = sqlite3.connect(os.path.join(app.root_path, "users.db"))
     g.c = g.db.cursor()
 
-@tumblr.teardown_request
+@app.teardown_request
 def teardown(response):
     g.c.close()
     g.db.close()
     return response
     
-@tumblr.route("/dashboard")
+@app.route("/dashboard")
+@app.route("/tumblr/dashboard")
 def index():
     return render_template("index.html")
 
-@tumblr.route("/dashboard/register", methods=["GET"])
+@app.route("/dashboard/register", methods=["GET"])
+@app.route("/tumblr/dashboard/register", methods=["GET"])
 def register():
     #Else it's a post
     
@@ -109,7 +108,7 @@ def register():
     #According to spec one must be provided, however most
     #implementations could care less
     body = urllib.urlencode({"oauth_callback": 
-                             url_for("tumblr.finish", _external=True)})
+                             url_for("finish", _external=True)})
     
     resp, content = client.request("http://www.tumblr.com/oauth/request_token", 
                                    "POST", body=body)
@@ -119,7 +118,8 @@ def register():
     return redirect("http://www.tumblr.com/oauth/authorize?oauth_token={0}"\
                     .format(session["request_token"]["oauth_token"]))
     
-@tumblr.route("/dashboard/registered")
+@app.route("/dashboard/registered")
+@app.route("/tumblr/dashboard/registered")
 def finish():
     "finish the auth process"
     
@@ -171,7 +171,7 @@ def render_rss(response, username="Unknown"):
     
     feed = rss.RSS2(
         title = u"{0}'s Tumblr Dashboard".format(username),
-        link = u"{0}/{1}".format(url_for("tumblr.index"), username),
+        link = u"{0}/{1}".format(url_for("index"), username),
         description = u"Automaticaly generated feed of {0}'s dashboard."\
                       .format(username),
         lastBuildDate = datetime.datetime.utcnow(),
@@ -188,7 +188,8 @@ def render_rss(response, username="Unknown"):
     resp.headers["Content-Type"] = "application/rss+xml"
     return resp
 
-@tumblr.route("/user/<path:username>.rss")
+@app.route("/user/<path:username>.rss")
+@app.route("/tumblr/user/<path:username>.rss")
 def user_posts(username):
     
     import urllib2, urllib
@@ -200,7 +201,8 @@ def user_posts(username):
     posts = json.loads(posts)
     return render_rss(posts["response"], username=username)
     
-@tumblr.route("/dashboard/<username>.rss")
+@app.route("/dashboard/<username>.rss")
+@app.route("/tumblr/dashboard/<username>.rss")
 def user_dash(username):
     
     g.c.execute("""
