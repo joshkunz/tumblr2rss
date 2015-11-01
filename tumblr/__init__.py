@@ -92,6 +92,7 @@ def teardown(response):
     g.db.close()
     return response
     
+@app.route("/")
 @app.route("/dashboard")
 @app.route("/tumblr/dashboard")
 def index():
