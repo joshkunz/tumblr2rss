@@ -17,8 +17,9 @@ import config
 app = Flask(__name__, template_folder='templates')
 #app.debug = True
 
-CONSUMER_KEY = config.CONSUMER_KEY #Tumblr API Consumer Key
-CONSUMER_SECRET = config.CONSUMER_SECRET #Tumblr API Consumer Secret
+app.secret_key = config.secret_key        # Cookie signing secret
+CONSUMER_KEY = config.CONSUMER_KEY        # Tumblr API Consumer Key
+CONSUMER_SECRET = config.CONSUMER_SECRET  # Tumblr API Consumer Secret
 
 post_templates = {
     "text": """
