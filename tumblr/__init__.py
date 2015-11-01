@@ -15,7 +15,7 @@ import sys, os
 import config
 
 app = Flask(__name__, template_folder='templates')
-#app.debug = True
+app.debug = True
 
 app.secret_key = config.secret_key        # Cookie signing secret
 CONSUMER_KEY = config.CONSUMER_KEY        # Tumblr API Consumer Key
@@ -84,7 +84,7 @@ for name, values in post_templates.iteritems():
 
 @app.before_request
 def setup():
-    g.db = sqlite3.connect(os.path.join(app.root_path, "users.db"))
+    g.db = sqlite3.connect(config.user_db)
     g.c = g.db.cursor()
 
 @app.teardown_request
