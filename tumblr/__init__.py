@@ -201,7 +201,7 @@ def page_count(feed_length):
     base = feed_length / TUMBLR_POST_LIMIT
     if feed_length % TUMBLR_POST_LIMIT != 0:
         base += 1
-    return feed_length
+    return base
 
 def get_post_list(client, length):
     post_list = []
@@ -233,7 +233,6 @@ def get_post_list(client, length):
         except KeyError:
             logging.error("No posts in response: {0}".format(pformat(dash_page)))
             abort(502)
-    post_list.reverse()
     return post_list
 
 @app.route("/dashboard/<username>.rss")
