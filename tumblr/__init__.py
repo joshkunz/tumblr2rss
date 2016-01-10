@@ -101,16 +101,11 @@ def teardown(response):
     return response
 
 @app.route("/")
-@app.route("/dashboard")
-@app.route("/tumblr/dashboard")
 def index():
     return render_template("index.html")
 
-@app.route("/dashboard/register", methods=["GET"])
-@app.route("/tumblr/dashboard/register", methods=["GET"])
+@app.route("/register", methods=["GET"])
 def register():
-    #Else it's a post
-
     consumer = oauth2.Consumer(CONSUMER_KEY, CONSUMER_SECRET)
     client = oauth2.Client(consumer)
 
@@ -127,8 +122,7 @@ def register():
     return redirect("http://www.tumblr.com/oauth/authorize?oauth_token={0}"\
                     .format(session["request_token"]["oauth_token"]))
 
-@app.route("/dashboard/registered")
-@app.route("/tumblr/dashboard/registered")
+@app.route("/registered")
 def finish():
     "finish the auth process"
 
@@ -236,7 +230,6 @@ def get_post_list(client, length):
     return post_list
 
 @app.route("/dashboard/<username>.rss")
-@app.route("/tumblr/dashboard/<username>.rss")
 def user_dash(username):
     g.c.execute("""
                 SELECT username, oauth_key, oauth_secret from user
@@ -260,3 +253,24 @@ def user_dash(username):
     client = oauth2.Client(consumer, token)
 
     return render_rss(get_post_list(client, post_count), username=user[0])
+
+## Old URL redirects
+
+@app.route("/dashboard")
+@app.route("/tumblr/dashboard")
+def old_index():
+    return redirect(url_for("index"), code=301)
+
+@app.route("/dashboard/register", methods=["GET"])
+@app.route("/tumblr/dashboard/register", methods=["GET"])
+def old_register():
+    return redirect(url_for("register"), code=301)
+
+@app.route("/dashboard/registered")
+@app.route("/tumblr/dashboard/registered")
+def old_finish():
+    return redirect(url_for("finish"), code=301)
+
+@app.route("/tumblr/dashboard/<username>.rss")
+def old_user_dash():
+    return redirect(url_for("user_dash"), code=301)
