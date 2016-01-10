@@ -272,5 +272,5 @@ def old_finish():
     return redirect(url_for("finish"), code=301)
 
 @app.route("/tumblr/dashboard/<username>.rss")
-def old_user_dash():
-    return redirect(url_for("user_dash"), code=301)
+def old_user_dash(username):
+    return redirect(url_for("user_dash", username=username), code=301)
