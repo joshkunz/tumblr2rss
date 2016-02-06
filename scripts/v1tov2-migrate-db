@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+import sqlite3
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("v1-db")
+parser.add_argument("v2-db")
+args = parser.parse_args()
+
+conn_v1 = sqlite3.connect(args.v1_db)
+curs_v1 = conn_v1.cursor()
+
+conn_v2 = sqlite3.connect(args.v2_db)
+curs_v2 = conn_v2.cursor()
+
+for row in curs_v1.execute("select * from user"):
+    username, oauth_key, oauth_secret = row
+    curs_v2.execute("""
+    insert into user (version,hash,username,oauth_key,oauth_secret)
+    values (?,?,?,?,?)""",
+    ("v1", None, username, oauth_key, oauth_secret))
+
+conn_v2.commit()
