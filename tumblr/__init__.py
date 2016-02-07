@@ -13,20 +13,27 @@ from jinja2 import Template
 import sys, os
 import logging
 from pprint import pformat
+import hashlib
+import base64
 
 import config
 
 app = Flask(__name__, template_folder='templates')
 app.debug = True
 
-app.secret_key = config.secret_key        # Cookie signing secret
+with open(config.SECRET_KEY_PATH) as f:
+    app.secret_key = f.read() 
+
 CONSUMER_KEY = config.CONSUMER_KEY        # Tumblr API Consumer Key
 CONSUMER_SECRET = config.CONSUMER_SECRET  # Tumblr API Consumer Secret
 
+FEED_MAX = config.FEED_MAX
+
 # Maximum number of posts per posts request to the tumblr API
 TUMBLR_POST_LIMIT = 20
-# Maximum number of posts allowed in an RSS feed
-FEED_MAX = 100
+
+# Add 256 bits of randomness + 1 to make base64 work better
+KEY_BYTES = (256 / 8) + 1
 
 post_templates = {
     "text": """
@@ -91,7 +98,7 @@ for name, values in post_templates.iteritems():
 
 @app.before_request
 def setup():
-    g.db = sqlite3.connect(config.user_db)
+    g.db = sqlite3.connect(config.USER_DB_PATH)
     g.c = g.db.cursor()
 
 @app.teardown_request
@@ -109,8 +116,8 @@ def register():
     consumer = oauth2.Consumer(CONSUMER_KEY, CONSUMER_SECRET)
     client = oauth2.Client(consumer)
 
-    #According to spec one must be provided, however most
-    #implementations could care less
+    # According to spec one must be provided, however most
+    # implementations could care less, Tumblr seems to respect this though...
     body = urllib.urlencode({"oauth_callback":
                              url_for("finish", _external=True)})
 
@@ -121,6 +128,20 @@ def register():
     session["request_token"] = dict(urlparse.parse_qsl(content))
     return redirect("http://www.tumblr.com/oauth/authorize?oauth_token={0}"\
                     .format(session["request_token"]["oauth_token"]))
+
+def gen_hash():
+    "Generate a one-time unique hash for the given user"
+    key = os.urandom(KEY_BYTES)
+    return base64.urlsafe_b64encode(key)
+
+def push_user(conn, curs, username, oauth_key, oauth_secret):
+    hash = gen_hash()
+    curs.execute("""
+        INSERT INTO user (version,hash,username,oauth_key,oauth_secret)
+        VALUES (?,?,?,?,?)""",
+        ("v2", hash, username, oauth_key, oauth_secret))
+    conn.commit()
+    return hash
 
 @app.route("/registered")
 def finish():
@@ -133,12 +154,11 @@ def finish():
     consumer = oauth2.Consumer(CONSUMER_KEY, CONSUMER_SECRET)
     client = oauth2.Client(consumer, token)
 
-    #request the
     resp, content = client.request("http://www.tumblr.com/oauth/access_token",
                                    "POST")
     if resp["status"] != "200": abort(400)
 
-    d= dict(urlparse.parse_qsl(content))
+    d = dict(urlparse.parse_qsl(content))
 
     token = oauth2.Token(d["oauth_token"], d["oauth_token_secret"])
     client = oauth2.Client(consumer, token)
@@ -146,17 +166,15 @@ def finish():
     resp, data = client.request("http://api.tumblr.com/v2/user/info", "POST")
     user_info_resp = json.loads(data)
 
-    g.c.execute("""
-                INSERT INTO user values (?, ?, ?)
-                """, (user_info_resp["response"]["user"]["name"],
-                      d["oauth_token"],
-                      d["oauth_token_secret"]))
-    g.db.commit()
+    username = user_info_resp["response"]["user"]["name"]
 
-    return render_template("registered.html",
-                           user=user_info_resp["response"]["user"]["name"])
+    h = push_user( g.db, g.c, username 
+                 , d["oauth_token"]
+                 ,d["oauth_token_secret"] )
 
-def render_rss(posts, username="Unknown"):
+    return render_template("registered.html", user=username, hash=h)
+
+def render_rss(posts, username):
     items = []
     for item in posts:
         items.append(rss.RSSItem(
@@ -174,8 +192,8 @@ def render_rss(posts, username="Unknown"):
 
     feed = rss.RSS2(
         title = u"{0}'s Tumblr Dashboard".format(username),
-        link = u"{0}/{1}".format(url_for("index"), username),
-        description = u"Automaticaly generated feed of {0}'s dashboard."\
+        link = u"https://{0}.tumblr.com".format(username),
+        description = u"Tumblr2RSS generated feed of {0}'s dashboard."\
                       .format(username),
         lastBuildDate = datetime.datetime.utcnow(),
         items = items
@@ -192,12 +210,36 @@ def render_rss(posts, username="Unknown"):
     return resp
 
 def page_count(feed_length):
+    """The number of pages that will need to be fetched to make of feed
+       of the given length"""
     base = feed_length / TUMBLR_POST_LIMIT
     if feed_length % TUMBLR_POST_LIMIT != 0:
         base += 1
     return base
 
-def get_post_list(client, length):
+def purge_unauthorized_user(username, key, secret):
+    g.c.execute("""
+    DELETE from user
+    WHERE version = "v1" AND username = ? 
+          AND oauth_key = ? AND oauth_secret = ?
+    """, (username, key, secret))
+    g.db.commit()
+
+def purge_unauthorized_hash(hash, key, secret):
+    g.c.execute("""
+    DELETE from user
+    WHERE version = "v2" AND hash = ? 
+      AND oauth_key = ? AND oauth_secret = ?
+    """, (username, key, secret))
+    g.db.commit()
+
+class TumblrUnauthorizedError(Exception): ""
+
+def get_post_list(key, secret, length):
+    consumer = oauth2.Consumer(CONSUMER_KEY, CONSUMER_SECRET)
+    token = oauth2.Token(key, secret)
+    client = oauth2.Client(consumer, token)
+
     post_list = []
     for page in xrange(page_count(length)):
         offset = page * TUMBLR_POST_LIMIT
@@ -206,14 +248,8 @@ def get_post_list(client, length):
               .format(offset, limit)
         resp, dash_page = client.request(url, "GET")
 
-        # Remove unauthorized user's info
         if resp.status == 401:
-            g.c.execute("""
-            DELETE from user where
-                username = ? AND oauth_key = ? AND oauth_secret = ?
-            """, (user[0], user[1], user[2]))
-            g.db.commit()
-            abort(404)
+            raise TumblrUnauthorizedError()
 
         if resp.status != 200:
             logging.error("{0} {1}".format(resp, dash_page))
@@ -229,30 +265,47 @@ def get_post_list(client, length):
             abort(502)
     return post_list
 
+def request_post_count(request, default=20):
+    if "length" not in request.args: return default
+    try:
+        length = int(request.args["length"])
+        if length < 1 or length > FEED_MAX: abort(400)
+        return length
+    except ValueError: abort(400)
+
 @app.route("/dashboard/<username>.rss")
-def user_dash(username):
+def user_dash_v1(username):
     g.c.execute("""
                 SELECT username, oauth_key, oauth_secret from user
-                WHERE username = ? limit 1
+                WHERE version = "v1" and username = ? limit 1
                 """, (username,))
+    user = g.c.fetchone()
+    if user is None: abort(404)
+    length = request_post_count(request)
+    username, oauth_key, oauth_secret = user
+    try:
+        posts = get_post_list(oauth_key, oauth_secret, length)
+    except TumblrUnauthorizedError:
+        purge_unauthorized_user(username, oauth_key, oauth_secret)
+        abort(404)
+    return render_rss(posts, username=username)
 
-    user = [x for x in g.c]
-
-    if user: user = user[0]
-    else: abort(404)
-
-    post_count = 20
-    if "length" in request.args:
-        try:
-            post_count = int(request.args["length"])
-            if post_count < 1 or post_count > FEED_MAX: abort(400)
-        except ValueError: abort(400)
-
-    consumer = oauth2.Consumer(CONSUMER_KEY, CONSUMER_SECRET)
-    token = oauth2.Token(user[1], user[2])
-    client = oauth2.Client(consumer, token)
-
-    return render_rss(get_post_list(client, post_count), username=user[0])
+@app.route("/v2/dashboard/<hash>.rss")
+def user_dash_v2(hash):
+    g.c.execute("""
+                SELECT username, oauth_key, oauth_secret from user
+                WHERE version = "v2" AND hash = ? limit 1
+                """, (hash,))
+    user = g.c.fetchone()
+    if user is None: abort(404)
+    length = request_post_count(request)
+    username, oauth_key, oauth_secret = user
+    try:
+        posts = get_post_list(oauth_key, oauth_secret, length)
+    except TumblrUnauthorizedError:
+        purge_unauthorized_hash(hash, oauth_key, oauth_secret)
+        abort(404)
+    return render_rss(posts, username=username)
 
 ## Old URL redirects
 
@@ -273,4 +326,4 @@ def old_finish():
 
 @app.route("/tumblr/dashboard/<username>.rss")
 def old_user_dash(username):
-    return redirect(url_for("user_dash", username=username), code=301)
+    return redirect(url_for("user_dash_v1", username=username), code=301)
