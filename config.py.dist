@@ -1,0 +1,8 @@
+CONSUMER_KEY = "<your tumblr consumer key>"
+CONSUMER_SECRET = "<your tumblr consumer secret>"
+
+# The output of `os.urandom(35)` should be good enough
+secret_key = "<some random bytes>"
+
+# Either absolute, or relative to the directory your server is running in
+user_db = "<path to the user database>"
