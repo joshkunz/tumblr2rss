@@ -2,8 +2,8 @@
 import sqlite3
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("v1-db")
-parser.add_argument("v2-db")
+parser.add_argument("v1_db")
+parser.add_argument("v2_db")
 args = parser.parse_args()
 
 conn_v1 = sqlite3.connect(args.v1_db)
