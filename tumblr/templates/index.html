@@ -2,14 +2,24 @@
 
 {% block body %}
 <div class="box">
-	<h1>Tumblr2Rss</h1>
-	<p>tumblr2rss is a little script that turns your tumblr
-	dashboard into an rss feed. Click the button below to
-	get started. <em>Note: using this service will effectively
-	make your dashboard public, so use with caution.</em></p>
-	<div class="button">
+	<h1>Tumblr2RSS</h1>
+	<p>tumblr2rss is a little service that turns your tumblr dashboard into
+       an RSS feed so you can read it in your RSS reader of choice along
+       with the rest of your RSS feeds.
+       Click the button below to get a feed URL.</p>
+	<div id="signup-button" class="button">
         <a class="login-ref" href="{{ url_for("register") }}">Login with tumblr</a>
     </div>
+    <h2 id="privacy">Dashboard/Feed Privacy Warning</h2>
+    <p>The feed URL Tumblr2RSS generates will be essentially unguessable
+    (it's much more likely that someone will guess your tumblr password before
+     they guess your feed URL). However, if someone does obtain your feed URL
+    they can learn your username, and see everything you see on your tumblr
+    dashboard. Basically, if you want to keep the contents of your dashboard
+    secret, make sure keep your feed URL secret.</p>
+    <p>For users who registered before the feeds were made private (i.e. if your
+    feed URL has your tumblr user name in it) then feel free to un-register,
+    and then re-register to get a new anonymous feed URL.</p>
     <h2 id="unregister">How to Unregister</h2>
     <p>You can unregister from this service (removing your ".rss" url) by
     going to <a href="https://www.tumblr.com/settings/apps">"Apps" in your settings</a>

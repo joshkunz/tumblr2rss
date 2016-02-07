@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% block body %}
+{% set suburl = url_for("user_dash_v2", hash=hash, _external=True) %}
 <div class="box">
-    <h1>Tumblr2Rss</h1>
-	<p>All done. See, that wasn't so bad. Just subscribe to the feed at the url 
-    below in your rss reader of choice. Enjoy.</p>
+    <h1><a href="/">Tumblr2RSS</a></h1>
+	<p>Your feed awaits. Either click the "Subscribe" button to auto-subscribe to your
+    feed with your reader of choice (using <a href="http://subtome.com">SubToMe</a>),
+    or copy the URL into your reader like any other feed.</p>
 	<div class="display">
-        <span>{{ url_for("user_dash", username=user, _external=True) }}</span>
+        <a id="subtome" class="button" onclick="(function(btn){var z=document.createElement('script');document.subtomeBtn=btn;z.src='https://www.subtome.com/load.js';document.body.appendChild(z);})(this)" data-subtome-resource="{{ suburl }}">Subscribe</a>
+        <span>{{ suburl }}</span>
 	</div>
 </div>
 {% endblock %}
