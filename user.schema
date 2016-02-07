@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS user (
     version      text       -- v1: "v1", v2: "v2"
-  , hash         text       -- v2 only: H(<nonce> + username)
+  , hash         text       -- v2 only: Feed key
   , username     text       -- v1 & v2: Tumblr username
   , oauth_key    text       -- v1 & v2: Tumblr oauth key
   , oauth_secret text);     -- v1 & v2: Tumblr oauth secret
