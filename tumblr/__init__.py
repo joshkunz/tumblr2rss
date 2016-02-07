@@ -134,7 +134,13 @@ def gen_hash():
     key = os.urandom(KEY_BYTES)
     return base64.urlsafe_b64encode(key)
 
+def remove_user(conn, curs, username):
+    "Remove all entries pertaining to a user from the database"
+    curs.execute("""DELETE FROM user where username = ?""", (username,))
+    conn.commit()
+
 def push_user(conn, curs, username, oauth_key, oauth_secret):
+    remove_user(conn, curs, username)
     hash = gen_hash()
     curs.execute("""
         INSERT INTO user (version,hash,username,oauth_key,oauth_secret)
