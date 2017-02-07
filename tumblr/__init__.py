@@ -236,7 +236,7 @@ def purge_unauthorized_hash(hash, key, secret):
     DELETE from user
     WHERE version = "v2" AND hash = ? 
       AND oauth_key = ? AND oauth_secret = ?
-    """, (username, key, secret))
+    """, (hash, key, secret))
     g.db.commit()
 
 class TumblrUnauthorizedError(Exception): ""
