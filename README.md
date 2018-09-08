@@ -46,4 +46,19 @@ install bazel. Once you have bazel installed you can run:
 Which will start the server running on <http://127.0.0.1:8080>. You can
 customize the server's host and port with the `--host` and `--port` flags.
 
+## Distributing
+
+As of writing, the easiest way to distribute tumblr2rss is by using Bazel's
+`--build_python_zip`. Run:
+
+    bazel build --build_python_zip tumblr2rss
+
+Which should build a zip file like `bazel-bin/tumblr2rss/tumblr2rss.zip`. This
+zip file can be run like a normal python file:
+
+    python bazel-bin/tumblr2rss/tumblr2rss.zip --help
+
+It can even be copied to another machine and run there, as long as it has a
+compatible version of Python.
+
 [bazel]: https://bazel.build/
