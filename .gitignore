@@ -1,4 +1,5 @@
 *.db
-*config.py
+*config.yaml
 *.pyc
 *.swp
+bazel-*
