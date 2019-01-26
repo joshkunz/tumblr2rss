@@ -13,6 +13,8 @@ filegroup(
 py_binary(
     name = "tumblr2rss",
     srcs = ["tumblr2rss.py"],
+    srcs_version = "PY3",
+    default_python_version = "PY3",
     data = [
         ":static",
         ":templates",

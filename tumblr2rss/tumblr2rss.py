@@ -1,20 +1,20 @@
 from flask import Flask, request, g, session, abort, \
                   redirect, make_response, url_for
 from flask.templating import render_template
+from jinja2 import Template
+from pprint import pformat
+import PyRSS2Gen as rss
+import base64
+import cStringIO
+import datetime
+import hashlib
+import json
+import logging
 import oauth2
 import sqlite3
-import json
+import sys, os
 import urllib
 import urlparse
-import PyRSS2Gen as rss
-import datetime
-import cStringIO
-from jinja2 import Template
-import sys, os
-import logging
-from pprint import pformat
-import hashlib
-import base64
 import yaml
 
 import gunicorn.app.base
@@ -85,7 +85,7 @@ post_templates = {
 }
 
 #Decorate the templates
-for name, values in post_templates.iteritems():
+for name, values in post_templates.items():
     post_templates[name] = Template(post_templates[name])
 
 @app.before_request
@@ -350,9 +350,9 @@ class Server(gunicorn.app.base.BaseApplication):
         super(Server, self).__init__()
 
     def load_config(self):
-        config = dict([(key, value) for key, value in self.options.iteritems()
+        config = dict([(key, value) for key, value in self.options.items()
                        if key in self.cfg.settings and value is not None])
-        for key, value in config.iteritems():
+        for key, value in config.items():
             self.cfg.set(key.lower(), value)
 
     def load(self):
