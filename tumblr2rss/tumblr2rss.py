@@ -5,16 +5,15 @@ from jinja2 import Template
 from pprint import pformat
 import PyRSS2Gen as rss
 import base64
-import cStringIO
 import datetime
 import hashlib
+import io
 import json
 import logging
 import oauth2
 import sqlite3
 import sys, os
-import urllib
-import urlparse
+import urllib.parse
 import yaml
 
 import gunicorn.app.base
@@ -25,7 +24,7 @@ app = Flask(__name__, template_folder='templates')
 TUMBLR_POST_LIMIT = 20
 
 # Add 256 bits of randomness + 1 to make base64 work better
-KEY_BYTES = (256 / 8) + 1
+KEY_BYTES = (256 // 8) + 1
 
 post_templates = {
     "text": """
@@ -88,6 +87,11 @@ post_templates = {
 for name, values in post_templates.items():
     post_templates[name] = Template(post_templates[name])
 
+def parse_qsl_dict(s):
+    return dict(
+            (k.decode(), v.decode())
+            for (k, v) in urllib.parse.parse_qsl(s))
+
 @app.before_request
 def setup():
     g.db = sqlite3.connect(app.config["USER_DB_PATH"])
@@ -111,8 +115,8 @@ def register():
 
     # According to spec one must be provided, however most
     # implementations could care less, Tumblr seems to respect this though...
-    body = urllib.urlencode({"oauth_callback":
-                             url_for("finish", _external=True)})
+    body = urllib.parse.urlencode({"oauth_callback":
+                                    url_for("finish", _external=True)})
 
     resp, content = client.request("https://www.tumblr.com/oauth/request_token",
                                    "POST", body=body)
@@ -120,14 +124,14 @@ def register():
         logging.error("Couldn't fetch token: %s", resp)
         abort(400)
 
-    session["request_token"] = dict(urlparse.parse_qsl(content))
+    session["request_token"] = parse_qsl_dict(content)
     return redirect("http://www.tumblr.com/oauth/authorize?oauth_token={0}"\
                     .format(session["request_token"]["oauth_token"]))
 
 def gen_hash():
     "Generate a one-time unique hash for the given user"
     key = os.urandom(KEY_BYTES)
-    return base64.urlsafe_b64encode(key)
+    return base64.urlsafe_b64encode(key).decode()
 
 def remove_user(conn, curs, username):
     "Remove all entries pertaining to a user from the database"
@@ -160,7 +164,7 @@ def finish():
                                    "POST")
     if resp["status"] != "200": abort(400)
 
-    d = dict(urlparse.parse_qsl(content))
+    d = parse_qsl_dict(content)
 
     token = oauth2.Token(d["oauth_token"], d["oauth_token_secret"])
     client = oauth2.Client(consumer, token)
@@ -170,7 +174,7 @@ def finish():
 
     username = user_info_resp["response"]["user"]["name"]
 
-    h = push_user( g.db, g.c, username 
+    h = push_user( g.db, g.c, username
                  , d["oauth_token"]
                  ,d["oauth_token_secret"] )
 
@@ -201,7 +205,7 @@ def render_rss(posts, username):
         items = items
     )
 
-    filefeed = cStringIO.StringIO()
+    filefeed = io.BytesIO()
     feed.write_xml(filefeed)
 
     resp = make_response(filefeed.getvalue(), 200)
@@ -214,7 +218,7 @@ def render_rss(posts, username):
 def page_count(feed_length):
     """The number of pages that will need to be fetched to make of feed
        of the given length"""
-    base = feed_length / TUMBLR_POST_LIMIT
+    base = feed_length // TUMBLR_POST_LIMIT
     if feed_length % TUMBLR_POST_LIMIT != 0:
         base += 1
     return base
@@ -222,7 +226,7 @@ def page_count(feed_length):
 def purge_unauthorized_user(username, key, secret):
     g.c.execute("""
     DELETE from user
-    WHERE version = "v1" AND username = ? 
+    WHERE version = "v1" AND username = ?
           AND oauth_key = ? AND oauth_secret = ?
     """, (username, key, secret))
     g.db.commit()
@@ -230,7 +234,7 @@ def purge_unauthorized_user(username, key, secret):
 def purge_unauthorized_hash(hash, key, secret):
     g.c.execute("""
     DELETE from user
-    WHERE version = "v2" AND hash = ? 
+    WHERE version = "v2" AND hash = ?
       AND oauth_key = ? AND oauth_secret = ?
     """, (hash, key, secret))
     g.db.commit()
@@ -244,7 +248,7 @@ def get_post_list(key, secret, length):
     client = oauth2.Client(consumer, token)
 
     post_list = []
-    for page in xrange(page_count(length)):
+    for page in range(page_count(length)):
         offset = page * TUMBLR_POST_LIMIT
         limit = min(length - offset, TUMBLR_POST_LIMIT)
         url = "https://api.tumblr.com/v2/user/dashboard?offset={0}&limit={1}"\
@@ -365,7 +369,7 @@ if __name__ == "__main__":
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--host", type=str, default="127.0.0.1")
-    parser.add_argument("--port", type=str, default="8080") 
+    parser.add_argument("--port", type=str, default="8080")
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
