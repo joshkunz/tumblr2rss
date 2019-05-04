@@ -1,24 +1,19 @@
+from pprint import pformat
+import base64
+import datetime
+import io
+import logging
+import os
+import sqlite3
+
+from authlib.flask.client import OAuth
 from flask import Flask, request, g, session, abort, \
                   redirect, make_response, url_for
 from flask.templating import render_template
 from jinja2 import Template
-from pprint import pformat
+from gunicorn.app import base as gunicorn_base
 import PyRSS2Gen as rss
-import base64
-import datetime
-import hashlib
-import io
-import json
-import logging
-import oauth2
-import sqlite3
-import sys, os
-import urllib.parse
 import yaml
-
-import gunicorn.app.base
-
-app = Flask(__name__, template_folder='templates')
 
 # Maximum number of posts per posts request to the tumblr API
 TUMBLR_POST_LIMIT = 20
@@ -87,10 +82,25 @@ post_templates = {
 for name, values in post_templates.items():
     post_templates[name] = Template(post_templates[name])
 
-def parse_qsl_dict(s):
-    return dict(
-            (k.decode(), v.decode())
-            for (k, v) in urllib.parse.parse_qsl(s))
+class SessionOAuthCache(object):
+
+    KEY = "oauth_request_cache"
+
+    @classmethod
+    def save(cls, token):
+        session[cls.KEY] = token
+
+    @classmethod
+    def fetch(cls):
+        v = session[cls.KEY]
+        return v
+
+def global_fetch_token(req):
+    del req # Unused
+    return g.fetch_token()
+
+app = Flask(__name__, template_folder='templates')
+oauth = OAuth(app, fetch_token=global_fetch_token)
 
 @app.before_request
 def setup():
@@ -109,24 +119,8 @@ def index():
 
 @app.route("/register", methods=["GET"])
 def register():
-    consumer = oauth2.Consumer(app.config["CONSUMER_KEY"],
-                               app.config["CONSUMER_SECRET"])
-    client = oauth2.Client(consumer)
-
-    # According to spec one must be provided, however most
-    # implementations could care less, Tumblr seems to respect this though...
-    body = urllib.parse.urlencode({"oauth_callback":
-                                    url_for("finish", _external=True)})
-
-    resp, content = client.request("https://www.tumblr.com/oauth/request_token",
-                                   "POST", body=body)
-    if resp["status"] != "200":
-        logging.error("Couldn't fetch token: %s", resp)
-        abort(400)
-
-    session["request_token"] = parse_qsl_dict(content)
-    return redirect("http://www.tumblr.com/oauth/authorize?oauth_token={0}"\
-                    .format(session["request_token"]["oauth_token"]))
+    finish_uri = url_for("finish", _external=True)
+    return oauth.tumblr.authorize_redirect(finish_uri)
 
 def gen_hash():
     "Generate a one-time unique hash for the given user"
@@ -138,13 +132,13 @@ def remove_user(conn, curs, username):
     curs.execute("""DELETE FROM user where username = ?""", (username,))
     conn.commit()
 
-def push_user(conn, curs, username, oauth_key, oauth_secret):
+def push_user(conn, curs, username, token):
     remove_user(conn, curs, username)
     hash = gen_hash()
     curs.execute("""
         INSERT INTO user (version,hash,username,oauth_key,oauth_secret)
         VALUES (?,?,?,?,?)""",
-        ("v2", hash, username, oauth_key, oauth_secret))
+        ("v2", hash, username, token["oauth_token"], token["oauth_token_secret"]))
     conn.commit()
     return hash
 
@@ -152,32 +146,14 @@ def push_user(conn, curs, username, oauth_key, oauth_secret):
 def finish():
     "finish the auth process"
 
-    token = oauth2.Token(session["request_token"]["oauth_token"],
-                         session["request_token"]["oauth_token_secret"])
-    token.set_verifier(request.args.get("oauth_verifier"))
-
-    consumer = oauth2.Consumer(app.config["CONSUMER_KEY"],
-                               app.config["CONSUMER_SECRET"])
-    client = oauth2.Client(consumer, token)
-
-    resp, content = client.request("https://www.tumblr.com/oauth/access_token",
-                                   "POST")
-    if resp["status"] != "200": abort(400)
-
-    d = parse_qsl_dict(content)
-
-    token = oauth2.Token(d["oauth_token"], d["oauth_token_secret"])
-    client = oauth2.Client(consumer, token)
-
-    resp, data = client.request("https://api.tumblr.com/v2/user/info", "POST")
-    user_info_resp = json.loads(data)
-
+    token = oauth.tumblr.authorize_access_token()
+    result = oauth.tumblr.post("user/info", token=token)
+    if result.status_code != 200:
+        abort(502)
+    user_info_resp = result.json()
     username = user_info_resp["response"]["user"]["name"]
 
-    h = push_user( g.db, g.c, username
-                 , d["oauth_token"]
-                 ,d["oauth_token_secret"] )
-
+    h = push_user(g.db, g.c, username, token)
     return render_template("registered.html", user=username, hash=h)
 
 def render_rss(posts, username):
@@ -223,46 +199,44 @@ def page_count(feed_length):
         base += 1
     return base
 
-def purge_unauthorized_user(username, key, secret):
+def purge_unauthorized_user(username):
+    token = oauth.tumblr.token
     g.c.execute("""
     DELETE from user
     WHERE version = "v1" AND username = ?
           AND oauth_key = ? AND oauth_secret = ?
-    """, (username, key, secret))
+    """, (username, token["oauth_token"], token["oauth_token_secret"]))
     g.db.commit()
 
-def purge_unauthorized_hash(hash, key, secret):
+def purge_unauthorized_hash(hash):
+    token = oauth.tumblr.token
     g.c.execute("""
     DELETE from user
     WHERE version = "v2" AND hash = ?
       AND oauth_key = ? AND oauth_secret = ?
-    """, (hash, key, secret))
+    """, (hash, token["oauth_token"], token["oauth_token_secret"]))
     g.db.commit()
 
 class TumblrUnauthorizedError(Exception): ""
 
-def get_post_list(key, secret, length):
-    consumer = oauth2.Consumer(app.config["CONSUMER_KEY"],
-                               app.config["CONSUMER_SECRET"])
-    token = oauth2.Token(key, secret)
-    client = oauth2.Client(consumer, token)
-
+def get_post_list(length):
     post_list = []
     for page in range(page_count(length)):
         offset = page * TUMBLR_POST_LIMIT
         limit = min(length - offset, TUMBLR_POST_LIMIT)
-        url = "https://api.tumblr.com/v2/user/dashboard?offset={0}&limit={1}"\
-              .format(offset, limit)
-        resp, dash_page = client.request(url, "GET")
+        resp = oauth.tumblr.get("user/dashboard", params={
+            "offset": offset,
+            "limit": limit,
+        })
 
-        if resp.status == 401:
+        if resp.status_code == 401:
             raise TumblrUnauthorizedError()
 
-        if resp.status != 200:
-            logging.error("{0} {1}".format(resp, dash_page))
+        if resp.status_code != 200:
+            logging.error("%s", resp)
             abort(502)
 
-        dash_page = json.loads(dash_page)
+        dash_page = resp.json()
 
         try:
             for post in dash_page["response"]["posts"]:
@@ -282,35 +256,43 @@ def request_post_count(request, default=20):
 
 @app.route("/dashboard/<username>.rss")
 def user_dash_v1(username):
-    g.c.execute("""
-                SELECT username, oauth_key, oauth_secret from user
-                WHERE version = "v1" and username = ? limit 1
-                """, (username,))
-    user = g.c.fetchone()
-    if user is None: abort(404)
+    def _fetch_token_v1():
+        g.c.execute("""
+                    SELECT oauth_key, oauth_secret from user
+                    WHERE version = "v1" and username = ? limit 1
+                    """, (username,))
+        user = g.c.fetchone()
+        if user is None: abort(404)
+        token, secret = user
+        return dict(oauth_token=token, oauth_token_secret=secret)
+    g.fetch_token = _fetch_token_v1
     length = request_post_count(request)
-    username, oauth_key, oauth_secret = user
     try:
-        posts = get_post_list(oauth_key, oauth_secret, length)
+        posts = get_post_list(length)
     except TumblrUnauthorizedError:
-        purge_unauthorized_user(username, oauth_key, oauth_secret)
+        purge_unauthorized_user(username)
         abort(404)
     return render_rss(posts, username=username)
 
 @app.route("/v2/dashboard/<hash>.rss")
 def user_dash_v2(hash):
-    g.c.execute("""
-                SELECT username, oauth_key, oauth_secret from user
-                WHERE version = "v2" AND hash = ? limit 1
-                """, (hash,))
-    user = g.c.fetchone()
-    if user is None: abort(404)
+    username = None
+    def _fetch_token_v2():
+        nonlocal username
+        g.c.execute("""
+                    SELECT username, oauth_key, oauth_secret from user
+                    WHERE version = "v2" AND hash = ? limit 1
+                    """, (hash,))
+        user = g.c.fetchone()
+        if user is None: abort(404)
+        username, token, secret = user
+        return dict(oauth_token=token, oauth_token_secret=secret)
+    g.fetch_token = _fetch_token_v2
     length = request_post_count(request)
-    username, oauth_key, oauth_secret = user
     try:
-        posts = get_post_list(oauth_key, oauth_secret, length)
+        posts = get_post_list(length)
     except TumblrUnauthorizedError:
-        purge_unauthorized_hash(hash, oauth_key, oauth_secret)
+        purge_unauthorized_hash(hash)
         abort(404)
     return render_rss(posts, username=username)
 
@@ -335,18 +317,30 @@ def old_finish():
 def old_user_dash(username):
     return redirect(url_for("user_dash_v1", username=username), code=301)
 
-def load_config(app, file):
-    with open(file, 'r') as cfg_file:
-        cfg = yaml.load(cfg_file)
-    app.config.from_mapping({
-        "CONSUMER_KEY": cfg["consumer_key"],
-        "CONSUMER_SECRET": cfg["consumer_secret"],
+def load_app_config(app, cfg):
+    app_config = {
         "FEED_MAX": cfg["feed_max"],
         "USER_DB_PATH": cfg["user_db_path"],
-    })
+    }
+    if "server_name" in cfg:
+        app_config["SERVER_NAME"] = cfg["server_name"]
+    app.config.from_mapping(app_config)
     app.secret_key = cfg["secret_key"]
 
-class Server(gunicorn.app.base.BaseApplication):
+def load_oauth_config(oauth, cfg):
+    oauth.register(
+        name="tumblr",
+        client_id=cfg["consumer_key"],
+        client_secret=cfg["consumer_secret"],
+        request_token_url="https://www.tumblr.com/oauth/request_token",
+        access_token_url="https://www.tumblr.com/oauth/access_token",
+        authorize_url="http://www.tumblr.com/oauth/authorize",
+        api_base_url="https://api.tumblr.com/v2/",
+        save_request_token=SessionOAuthCache.save,
+        fetch_request_token=SessionOAuthCache.fetch,
+    )
+
+class Server(gunicorn_base.BaseApplication):
 
     def __init__(self, app, options=None):
         self.options = options or {}
@@ -375,7 +369,10 @@ if __name__ == "__main__":
 
     if args.debug:
         app.debug = True
-    load_config(app, args.config)
+    with open(args.config, 'r') as cfg_file:
+        cfg = yaml.load(cfg_file)
+    load_app_config(app, cfg)
+    load_oauth_config(oauth, cfg)
 
     server = Server(app, options={
         "bind": "{host}:{port}".format(host=args.host, port=args.port),
