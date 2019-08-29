@@ -61,4 +61,21 @@ zip file can be run like a normal python file:
 It can even be copied to another machine and run there, as long as it has a
 compatible version of Python.
 
+### A note on using Python3 
+
+Bazel has some unfortunate bugs (bazelbuild/bazel#5899,
+bazelbuild/rules_python#37) that cause it to use python2 when fetching PIP
+packages. Because of this, packages will pull-in compatibility libraries
+(e.g., enum34) which will conflict with the system libraries when run. To get
+around this, I've had success symlinking `python` to `python3` when running
+bazel commands. For example:
+
+```bash
+$ mkdir bin
+$ ln -s `which python3` bin/python
+$ env PATH=$PWD/bin:$PATH bazel build --build_python_zip tumblr2rss
+```
+
+Try that if you're having issues building with bazel directly.
+
 [bazel]: https://bazel.build/
