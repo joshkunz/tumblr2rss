@@ -1,3 +1,4 @@
+load("@rules_python//python:defs.bzl", "py_binary")
 load("@pip_deps//:requirements.bzl", "all_requirements")
 
 filegroup(
@@ -14,7 +15,7 @@ py_binary(
     name = "tumblr2rss",
     srcs = ["tumblr2rss.py"],
     srcs_version = "PY3",
-    default_python_version = "PY3",
+    python_version = "PY3",
     data = [
         ":static",
         ":templates",
