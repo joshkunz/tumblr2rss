@@ -1,5 +1,5 @@
 load("@rules_python//python:defs.bzl", "py_binary")
-load("@pip_deps//:requirements.bzl", "all_requirements")
+load("@pip_deps//:requirements.bzl", "requirement")
 
 filegroup(
     name = "static",
@@ -20,5 +20,12 @@ py_binary(
         ":static",
         ":templates",
     ],
-    deps = all_requirements,
+    deps = [
+        requirement("Authlib"),
+        requirement("Flask"),
+        requirement("PyRSS2Gen"),
+        requirement("PyYAML"),
+        requirement("gunicorn"),
+        requirement("requests"),
+    ],
 )

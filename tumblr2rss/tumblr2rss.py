@@ -6,7 +6,7 @@ import logging
 import os
 import sqlite3
 
-from authlib.flask.client import OAuth
+from authlib.integrations.flask_client import OAuth
 from flask import Flask, request, g, session, abort, \
                   redirect, make_response, url_for
 from flask.templating import render_template
