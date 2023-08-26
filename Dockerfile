@@ -8,8 +8,9 @@ RUN apt-get update && \
     /venv/bin/pip install --upgrade pip setuptools wheel
 
 FROM build AS build-env
-COPY requirements.lock /requirements.lock
-RUN /venv/bin/pip install --disable-pip-version-check -r /requirements.lock
+COPY requirements.* /
+RUN /venv/bin/pip install \
+        --disable-pip-version-check -r requirements.lock
 
 FROM gcr.io/distroless/python3-debian11
 COPY --from=build-env /venv /venv
