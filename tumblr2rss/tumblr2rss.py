@@ -370,7 +370,7 @@ if __name__ == "__main__":
     if args.debug:
         app.debug = True
     with open(args.config, 'r') as cfg_file:
-        cfg = yaml.load(cfg_file)
+        cfg = yaml.load(cfg_file, Loader=yaml.Loader)
     load_app_config(app, cfg)
     load_oauth_config(oauth, cfg)
 
