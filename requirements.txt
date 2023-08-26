@@ -5,3 +5,4 @@ Jinja2
 gunicorn
 PyRSS2Gen
 PyYAML
+requests
