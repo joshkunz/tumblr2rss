@@ -1,7 +1,7 @@
 # tumblr2RSS
 
 Turns your tumblr dashboard into an RSS feed. An installation of this service
-is currently running on my website at 
+is currently running on my website at
 [tumblr2rss.obstack.net](http://tumblr2rss.obstack.net).
 Just follow the instructions on that page and you will get a link
 like `http://tumblr2rss.obstack.net/v2/dashboard/<random-junk>.rss`
@@ -24,7 +24,7 @@ Then make a copy of the skeleton configuration file:
 
     cp config.yaml.skel config.yaml
 
-and fill in all the necessary fields. Most important are the 
+and fill in all the necessary fields. Most important are the
 `consumer_key` and `consumer_secret` fields you got from tumblr. You'll need
 some random data in the `secret_key` field of this config. You can use the
 included `scripts/make-secret-key` script to generate a strong key for you.
@@ -36,46 +36,14 @@ a script that can do that for you:
 
     scripts/make-db
 
-Finally, you'll need to build and run the server. Tumblr2RSS is built using
-[Bazel][bazel], follow the instructions
-[on the Bazel site](https://docs.bazel.build/versions/master/install.html) to
-install bazel. Once you have bazel installed you can run:
+Finally you can create a virtual environment:
 
-    bazel run tumblr2rss -- --config <path/to/your/config.yml>
+    python3 -m virtualenv venv
+    source ./venv/bin/activate
+    pip3 install -r requirements.lock
 
-Which will start the server running on <http://127.0.0.1:8080>. You can
-customize the server's host and port with the `--host` and `--port` flags.
+Then you can run the server:
 
-## Distributing
+    python3 tumblr2rss.py --config ./config.yaml --host 0.0.0.0 --port 8080
 
-As of writing, the easiest way to distribute tumblr2rss is by using Bazel's
-`--build_python_zip`. Run:
-
-    bazel build --build_python_zip tumblr2rss
-
-Which should build a zip file like `bazel-bin/tumblr2rss/tumblr2rss.zip`. This
-zip file can be run like a normal python file:
-
-    python bazel-bin/tumblr2rss/tumblr2rss.zip --help
-
-It can even be copied to another machine and run there, as long as it has a
-compatible version of Python.
-
-### A note on using Python3 
-
-Bazel has some unfortunate bugs (bazelbuild/bazel#5899,
-bazelbuild/rules_python#37) that cause it to use python2 when fetching PIP
-packages. Because of this, packages will pull-in compatibility libraries
-(e.g., enum34) which will conflict with the system libraries when run. To get
-around this, I've had success symlinking `python` to `python3` when running
-bazel commands. For example:
-
-```bash
-$ mkdir bin
-$ ln -s `which python3` bin/python
-$ env PATH=$PWD/bin:$PATH bazel build --build_python_zip tumblr2rss
-```
-
-Try that if you're having issues building with bazel directly.
-
-[bazel]: https://bazel.build/
+Change the host and port based on your hosting environment.
